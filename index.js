@@ -23,23 +23,18 @@ async function stat(filename) {
 }
 
 const server = http.createServer(async (req, res) => {
+  const filename = path.join(dataDir, req.url) + '.json';
+  if (!filename.startsWith(dataDir)) {
+    res.statusCode = 403;
+    res.end('Forbidden');
+    return;
+  }
   if (req.method === 'GET') {
-    for (const s = req.url.split('/').filter((x) => x); s.length; s.pop()) {
-      const dirName = path.join(dataDir, ...s);
-      const filename = dirName + '.json';
-      if (await stat(filename) === 'file') {
-        return fs.createReadStream(filename).pipe(res);
-      }
-      if (await stat(dirName) === 'directory') {
-        const files = (await fsp.readdir(dirName)).filter((file) => file.endsWith('.json'));
-        if (files.length > 0) {
-          return fs.createReadStream(path.join(dirName, files[0])).pipe(res);
-        }
-      }
+    if (await stat(filename) === 'file') {
+      return fs.createReadStream(filename).pipe(res);
     }
   } else if (req.method === 'POST') {
     if (req.url !== '/') {
-      const filename = path.join(dataDir, req.url) + '.json';
       const dirName = path.dirname(filename);
       await fsp.mkdir(dirName, { recursive: true });
       req.pipe(fs.createWriteStream(filename));
